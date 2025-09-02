@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 农作物知识图谱系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .nav-buttons {
+            margin: 20px 0;
+        }
+
+        .nav-buttons button {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 10px 20px;
+            margin: 0 10px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .nav-buttons button:hover,
+        .nav-buttons button.active {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+
+        .table-container {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .activity-type {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .activity-login { background: #d4edda; color: #155724; }
+        .activity-logout { background: #f8d7da; color: #721c24; }
+        .activity-register { background: #d1ecf1; color: #0c5460; }
+        .activity-search { background: #fff3cd; color: #856404; }
+        .activity-question { background: #e2e3e5; color: #383d41; }
+        .activity-view_graph { background: #cce5ff; color: #004085; }
+        .activity-view_node { background: #e7f3ff; color: #0056b3; }
+        .activity-change_view { background: #f0e6ff; color: #6f42c1; }
+
+        .back-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
+            transition: transform 0.2s ease;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .filter-controls {
+            margin-bottom: 20px;
+        }
+
+        .filter-controls select, .filter-controls input {
+            padding: 8px 12px;
+            margin: 0 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛠️ 用户管理面板</h1>
+            <p>管理用户信息和查看系统使用情况</p>
+            
+            <div class="nav-buttons">
+                <button onclick="showSection('users')" class="active" id="users-btn">用户列表</button>
+                <button onclick="showSection('activities')" id="activities-btn">行为记录</button>
+                <button onclick="showSection('stats')" id="stats-btn">统计信息</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <a href="/" class="back-btn">← 返回主页</a>
+
+            <!-- 用户列表 -->
+            <div id="users-section" class="section active">
+                <h2>📋 用户列表</h2>
+                <div class="table-container">
+                    <table id="users-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>用户名</th>
+                                <th>邮箱</th>
+                                <th>注册时间</th>
+                                <th>最后登录</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 行为记录 -->
+            <div id="activities-section" class="section">
+                <h2>📊 用户行为记录</h2>
+                <div class="filter-controls">
+                    <select id="user-filter">
+                        <option value="">所有用户</option>
+                    </select>
+                    <select id="activity-filter">
+                        <option value="">所有活动</option>
+                        <option value="login">登录</option>
+                        <option value="logout">登出</option>
+                        <option value="register">注册</option>
+                        <option value="search">搜索</option>
+                        <option value="question">问答</option>
+                        <option value="view_graph">查看图谱</option>
+                        <option value="view_node">查看节点</option>
+                        <option value="change_view">切换视图</option>
+                    </select>
+                    <button onclick="loadActivities()">刷新</button>
+                </div>
+                <div class="table-container">
+                    <table id="activities-table">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>用户</th>
+                                <th>活动类型</th>
+                                <th>详细信息</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 统计信息 -->
+            <div id="stats-section" class="section">
+                <h2>📈 统计信息</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3 id="total-users">-</h3>
+                        <p>总用户数</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="total-activities">-</h3>
+                        <p>总活动数</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="active-today">-</h3>
+                        <p>今日活跃用户</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let users = [];
+        let activities = [];
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUsers();
+            loadActivities();
+        });
+
+        // 切换显示区域
+        function showSection(section) {
+            // 隐藏所有区域
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-buttons button').forEach(b => b.classList.remove('active'));
+            
+            // 显示选中区域
+            document.getElementById(section + '-section').classList.add('active');
+            document.getElementById(section + '-btn').classList.add('active');
+        }
+
+        // 加载用户列表
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/admin/users');
+                if (response.ok) {
+                    users = await response.json();
+                    displayUsers();
+                    updateUserFilter();
+                    updateStats();
+                } else {
+                    console.error('获取用户列表失败');
+                }
+            } catch (error) {
+                console.error('加载用户列表出错:', error);
+            }
+        }
+
+        // 显示用户列表
+        function displayUsers() {
+            const tbody = document.querySelector('#users-table tbody');
+            tbody.innerHTML = '';
+            
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${user.id}</td>
+                    <td>${user.username}</td>
+                    <td>${user.email}</td>
+                    <td>${formatDateTime(user.created_at)}</td>
+                    <td>${user.last_login ? formatDateTime(user.last_login) : '从未登录'}</td>
+                    <td>
+                        <button onclick="viewUserActivities(${user.id})" style="padding: 4px 8px; border: none; background: #007bff; color: white; border-radius: 4px; cursor: pointer;">
+                            查看活动
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 加载行为记录
+        async function loadActivities() {
+            try {
+                const userId = document.getElementById('user-filter').value;
+                const url = userId ? `/api/admin/activities?user_id=${userId}` : '/api/admin/activities';
+                
+                const response = await fetch(url);
+                if (response.ok) {
+                    activities = await response.json();
+                    displayActivities();
+                    updateStats();
+                } else {
+                    console.error('获取行为记录失败');
+                }
+            } catch (error) {
+                console.error('加载行为记录出错:', error);
+            }
+        }
+
+        // 显示行为记录
+        function displayActivities() {
+            const tbody = document.querySelector('#activities-table tbody');
+            const activityFilter = document.getElementById('activity-filter').value;
+            
+            tbody.innerHTML = '';
+            
+            const filteredActivities = activityFilter ? 
+                activities.filter(a => a.activity_type === activityFilter) : 
+                activities;
+            
+            filteredActivities.forEach(activity => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${formatDateTime(activity.timestamp)}</td>
+                    <td>${activity.username}</td>
+                    <td><span class="activity-type activity-${activity.activity_type}">${getActivityTypeName(activity.activity_type)}</span></td>
+                    <td>${formatActivityData(activity.activity_data)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 更新用户筛选器
+        function updateUserFilter() {
+            const select = document.getElementById('user-filter');
+            select.innerHTML = '<option value="">所有用户</option>';
+            
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = user.username;
+                select.appendChild(option);
+            });
+        }
+
+        // 查看特定用户的活动
+        function viewUserActivities(userId) {
+            document.getElementById('user-filter').value = userId;
+            showSection('activities');
+            loadActivities();
+        }
+
+        // 更新统计信息
+        function updateStats() {
+            document.getElementById('total-users').textContent = users.length;
+            document.getElementById('total-activities').textContent = activities.length;
+            
+            // 计算今日活跃用户
+            const today = new Date().toISOString().split('T')[0];
+            const activeToday = new Set(
+                activities
+                    .filter(a => a.timestamp.startsWith(today))
+                    .map(a => a.user_id)
+            ).size;
+            document.getElementById('active-today').textContent = activeToday;
+        }
+
+        // 格式化日期时间
+        function formatDateTime(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleString('zh-CN');
+        }
+
+        // 获取活动类型中文名称
+        function getActivityTypeName(type) {
+            const names = {
+                'login': '登录',
+                'logout': '登出',
+                'register': '注册',
+                'search': '搜索',
+                'question': '问答',
+                'view_graph': '查看图谱',
+                'view_node': '查看节点',
+                'change_view': '切换视图'
+            };
+            return names[type] || type;
+        }
+
+        // 格式化活动数据
+        function formatActivityData(data) {
+            if (!data || Object.keys(data).length === 0) return '-';
+            
+            const parts = [];
+            for (const [key, value] of Object.entries(data)) {
+                if (key === 'password') continue; // 不显示密码相关信息
+                parts.push(`${key}: ${value}`);
+            }
+            return parts.join(', ');
+        }
+
+        // 添加筛选器事件监听
+        document.getElementById('user-filter').addEventListener('change', loadActivities);
+        document.getElementById('activity-filter').addEventListener('change', displayActivities);
+    </script>
+</body>
+</html>

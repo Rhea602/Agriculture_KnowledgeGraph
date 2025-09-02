@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>农作物知识图谱系统</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            display: flex;
+            height: 100vh;
+        }
+        
+        .container {
+            margin: 0;
+            background: white;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: hidden;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: white;
+            font-size: 14px;
+        }
+        
+        .user-info .username {
+            font-weight: bold;
+        }
+        
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s ease;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .controls {
+            padding: 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .controls button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        
+        .controls button:hover {
+            background: #0056b3;
+        }
+        
+        #graph-container {
+            width: 100%;
+            height: 600px;
+            position: relative;
+            flex: 1;
+            overflow: hidden; /* 防止内容溢出导致滚动条变化 */
+        }
+        
+        .node {
+            cursor: pointer;
+            stroke: #fff;
+            stroke-width: 3px;
+        }
+        
+        .link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+            stroke-width: 2px;
+        }
+        
+        .node-label {
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            text-anchor: middle;
+            pointer-events: none;
+            font-weight: bold;
+        }
+        
+        .tooltip {
+            position: fixed; /* 改为fixed定位，避免影响文档流 */
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            pointer-events: none;
+            z-index: 1000;
+            max-width: 350px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            opacity: 0; /* 使用opacity而不是display来控制显示 */
+            transition: opacity 0.2s ease; /* 添加平滑过渡效果 */
+        }
+        
+        .tooltip.visible { 
+            opacity: 1;
+        }
+        
+        .sidebar {
+            width: 25%; 
+            background: white;
+            border-right: 1px solid #dee2e6;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .sidebar-content {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .search-section {
+            margin-bottom: 30px;
+        }
+        
+        .search-section h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .search-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 14px;
+        }
+        
+        .search-btn:hover {
+            background: #0056b3;
+        }
+        
+        .main-content {
+            flex: 1; 
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .qa-section {
+            margin-bottom: 30px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            background: #f8f9fa;
+        }
+        
+        .qa-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 10px;
+            resize: vertical;
+            min-height: 60px;
+        }
+        
+        .qa-answer {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 10px;
+            font-size: 13px;
+            line-height: 1.5;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .qa-loading {
+            color: #6c757d;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>查询面板</h2>
+        </div>
+        <div class="sidebar-content">
+            <div class="search-section">
+                <h3>🔍 属性搜索</h3>
+                <div class="form-group">
+                    <label for="entity-type">实体类型:</label>
+                    <select id="entity-type" onchange="updatePropertyOptions()">
+                        <option value="Wheat">Wheat (小麦)</option>
+                        <option value="Region">Region (地区)</option>
+                        <option value="Disease">Disease (病害)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="property-key">属性名:</label>
+                    <select id="property-key">
+                        <option value="品种名称">品种名称</option>
+                        <option value="库编号">库编号</option>
+                        <option value="统一编号">统一编号</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="property-value">属性值:</label>
+                    <input type="text" id="property-value" placeholder="输入搜索内容...">
+                </div>
+                <div class="form-group">
+                    <label for="search-limit">结果数量:</label>
+                    <select id="search-limit">
+                        <option value="25">25</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <button class="search-btn" onclick="searchByProperty()">搜索实体</button>
+            </div>
+            
+            <div class="search-section qa-section">
+                <h3>🤖 智能问答</h3>
+                <div class="form-group">
+                    <label for="question-input">请输入您的问题:</label>
+                    <textarea id="question-input" class="qa-input" placeholder="例如：北京白会受到哪些病害影响？" style="width: 300px;"></textarea>
+                </div>
+                <button class="search-btn" onclick="askQuestion()">提问</button>
+                <div id="qa-answer" class="qa-answer" style="display: none;"></div>
+            </div>
+            
+            <div class="search-section">
+                <h3>📊 图谱信息</h3>
+                <div id="graph-stats">
+                    <p>节点数: <span id="node-count">0</span></p>
+                    <p>关系数: <span id="link-count">0</span></p>
+                </div>
+            </div>
+            
+            <div class="search-section">
+                <h3>🎨 显示设置</h3>
+                <button class="search-btn" onclick="refreshGraph()">刷新图谱</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="container">
+            <div class="header">
+                <h1>农作物知识图谱系统</h1>
+                <div class="user-info">
+                    <span>欢迎，</span>
+                    <span class="username" id="current-username">加载中...</span>
+                    <a href="/admin" id="admin-link" style="display: none; color: white; text-decoration: none; margin-right: 10px; padding: 4px 8px; background: rgba(255,255,255,0.2); border-radius: 4px; font-size: 12px;">管理</a>
+                    <button class="logout-btn" onclick="logout()">登出</button>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label for="view-selector" style="font-weight: bold; color: #333;">选择视图:</label>
+                        <select id="view-selector" onchange="changeView()" style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            <option value="overview">图谱概览</option>
+                            <option value="wheat-region">小麦-地区</option>
+                            <option value="wheat-disease">小麦-病害</option>
+                        </select>
+                    </div>
+                    <span id="view-description" style="color: #666; font-size: 14px;">显示: AFFECTED_BY 和 GROWS_IN 关系</span>
+                </div>
+            </div>
+            
+            <div id="graph-container">
+                <div class="loading" id="loading">正在加载图谱数据...</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="tooltip" id="tooltip"></div>
+    
+    <!-- 新增详细信息模态窗口 -->
+    <div id="detail-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; max-width: 500px; max-height: 70vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 id="modal-title">详细信息</h3>
+                <button onclick="closeModal()" style="background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
+            </div>
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <script>
+        let svg, simulation, nodes, links;
+        let graphData = { nodes: [], relationships: [] };
+        let currentNodeDisplay = 'name';
+        
+        async function checkHealth() {
+            try {
+                const response = await fetch('/api/health');
+                const health = await response.json();
+                console.log('系统健康状态:', health);
+                return health.status === 'healthy';
+            } catch (error) {
+                console.error('健康检查失败:', error);
+                return false;
+            }
+        }
+        
+        // 初始化SVG
+        function initSVG() {
+            const container = d3.select("#graph-container");
+            const width = container.node().getBoundingClientRect().width;
+            const height = container.node().getBoundingClientRect().height;
+            
+            // 清除现有的SVG
+            container.select("svg").remove();
+            
+            svg = container.append("svg")
+                .attr("width", width)
+                .attr("height", height);
+            
+            // 添加缩放功能
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 4])
+                .on("zoom", (event) => {
+                    svg.select("g").attr("transform", event.transform);
+                });
+            
+            svg.call(zoom);
+            
+            // 创建主要的g元素
+            const g = svg.append("g");
+            
+            return { width, height, g };
+        }
+        
+        function getNodeColor(labels) {
+            const colors = {
+                'Wheat': '#f39c12',
+                'Region': '#27ae60',
+                'Disease': '#e74c3c',
+                'Person': '#3498db',
+                'Company': '#9b59b6',
+                'default': '#95a5a6'
+            };
+            
+            if (labels && labels.length > 0) {
+                return colors[labels[0]] || colors.default;
+            }
+            return colors.default;
+        }
+        
+        function getNodeLabel(node) {
+            const props = node.properties;
+            const labels = node.labels || [];
+            
+            if (labels.includes('Wheat')) {
+                return props['品种名称'] || props.name || `Wheat ${node.id}`;
+            } else if (labels.includes('Region')) {
+                return props['原产地'] || props.name || `Region ${node.id}`;
+            } else if (labels.includes('Disease')) {
+                return props['病害名称'] || props.name || `Disease ${node.id}`;
+            }
+            
+            // 默认显示逻辑
+            const displayProp = currentNodeDisplay;
+            if (displayProp === 'id') {
+                return `${node.id}`;
+            }
+            
+            return props[displayProp] || props.name || props.title || props.label || `Node ${node.id}`;
+        }
+        
+        // 创建工具提示内容
+        function createTooltipContent(node) {
+            let content = `<h4>${getNodeLabel(node)}</h4>`;
+            content += `<div class="property"><strong>ID:</strong> ${node.id}</div>`;
+            
+            if (node.labels && node.labels.length > 0) {
+                content += `<div class="property"><strong>标签:</strong> ${node.labels.join(', ')}</div>`;
+            }
+            
+            if (node.properties && Object.keys(node.properties).length > 0) {
+                content += `<div class="property"><strong>属性:</strong></div>`;
+                for (const [key, value] of Object.entries(node.properties)) {
+                    content += `<div class="property">&nbsp;&nbsp;${key}: ${value}</div>`;
+                }
+            }
+            
+            return content;
+        }
+        
+        function createLinkTooltipContent(link) {
+            let content = `<h4>关系: ${link.type}</h4>`;
+            content += `<div class="property"><strong>源节点:</strong> ${link.source.id}</div>`;
+            content += `<div class="property"><strong>目标节点:</strong> ${link.target.id}</div>`;
+            
+            if (link.properties && Object.keys(link.properties).length > 0) {
+                content += `<div class="property"><strong>关系属性:</strong></div>`;
+                for (const [key, value] of Object.entries(link.properties)) {
+                    content += `<div class="property">&nbsp;&nbsp;${key}: ${value}</div>`;
+                }
+            }
+            
+            return content;
+        }
+        
+        function createDetailModalContent(data, type) {
+            let content = '';
+            
+            if (type === 'node') {
+                content += `<div class="detail-section">`;
+                content += `<h4>节点信息</h4>`;
+                content += `<p><strong>ID:</strong> ${data.id}</p>`;
+                
+                if (data.labels && data.labels.length > 0) {
+                    content += `<p><strong>标签:</strong> ${data.labels.join(', ')}</p>`;
+                }
+                
+                if (data.properties && Object.keys(data.properties).length > 0) {
+                    content += `<h5>属性列表:</h5>`;
+                    content += `<table style="width: 100%; border-collapse: collapse;">`;
+                    for (const [key, value] of Object.entries(data.properties)) {
+                        content += `<tr style="border-bottom: 1px solid #eee;">`;
+                        content += `<td style="padding: 8px; font-weight: bold;">${key}</td>`;
+                        content += `<td style="padding: 8px;">${value}</td>`;
+                        content += `</tr>`;
+                    }
+                    content += `</table>`;
+                }
+                content += `</div>`;
+            } else if (type === 'link') {
+                content += `<div class="detail-section">`;
+                content += `<h4>关系信息</h4>`;
+                content += `<p><strong>类型:</strong> ${data.type}</p>`;
+                content += `<p><strong>源节点:</strong> ${getNodeLabel(data.source)} (ID: ${data.source.id})</p>`;
+                content += `<p><strong>目标节点:</strong> ${getNodeLabel(data.target)} (ID: ${data.target.id})</p>`;
+                
+                if (data.properties && Object.keys(data.properties).length > 0) {
+                    content += `<h5>关系属性:</h5>`;
+                    content += `<table style="width: 100%; border-collapse: collapse;">`;
+                    for (const [key, value] of Object.entries(data.properties)) {
+                        content += `<tr style="border-bottom: 1px solid #eee;">`;
+                        content += `<td style="padding: 8px; font-weight: bold;">${key}</td>`;
+                        content += `<td style="padding: 8px;">${value}</td>`;
+                        content += `</tr>`;
+                    }
+                    content += `</table>`;
+                } else {
+                    content += `<p><em>该关系没有额外属性</em></p>`;
+                }
+                content += `</div>`;
+            }
+            
+            return content;
+        }
+        
+        function showDetailModal(data, type) {
+            const modal = document.getElementById('detail-modal');
+            const title = document.getElementById('modal-title');
+            const content = document.getElementById('modal-content');
+            
+            if (type === 'node') {
+                title.textContent = `节点详情: ${getNodeLabel(data)}`;
+            } else {
+                title.textContent = `关系详情: ${data.type}`;
+            }
+            
+            content.innerHTML = createDetailModalContent(data, type);
+            modal.style.display = 'block';
+        }
+        
+        function closeModal() {
+            document.getElementById('detail-modal').style.display = 'none';
+        }
+        
+        // 渲染图谱
+        function renderGraph() {
+            const { width, height, g } = initSVG();
+            
+            // 转换数据格式
+            nodes = graphData.nodes.map(d => ({ ...d }));
+            links = graphData.relationships.map(d => ({
+                source: d.source,
+                target: d.target,
+                type: d.type,
+                properties: d.properties
+            }));
+            
+            simulation = d3.forceSimulation(nodes)
+                .force("link", d3.forceLink(links).id(d => d.id).distance(120))
+                .force("charge", d3.forceManyBody().strength(-400))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(40));
+            
+            // 绘制连线
+            const link = g.append("g")
+                .selectAll("line")
+                .data(links)
+                .enter().append("line")
+                .attr("class", "link")
+                .style("cursor", "pointer")
+                .on("mouseover", function(event, d) {
+                    const rect = this.getBoundingClientRect();
+                    const tooltip = d3.select("#tooltip");
+                    tooltip
+                        .classed("visible", true)
+                        .html(createLinkTooltipContent(d))
+                        .style("left", (rect.left + rect.width/2 + 10) + "px")
+                        .style("top", (rect.top - 10) + "px");
+                })
+                .on("mouseout", function() {
+                    d3.select("#tooltip").classed("visible", false);
+                })
+                .on("click", function(event, d) {
+                    event.stopPropagation();
+                    showDetailModal(d, 'link');
+                });
+            
+            const node = g.append("g")
+                .selectAll("circle")
+                .data(nodes)
+                .enter().append("circle")
+                .attr("class", "node")
+                .attr("r", 25)
+                .attr("fill", d => getNodeColor(d.labels))
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended));
+            
+            const label = g.append("g")
+                .selectAll("text")
+                .data(nodes)
+                .enter().append("text")
+                .attr("class", "node-label")
+                .text(d => getNodeLabel(d))
+                .attr("dy", "0.35em")
+                .attr("text-anchor", "middle")
+                .style("fill", "white")
+                .style("font-weight", "bold")
+                .style("font-size", "12px")
+                .style("pointer-events", "none");
+            
+            // 添加鼠标事件
+            const tooltip = d3.select("#tooltip");
+            
+            node
+                .on("mouseover", function(event, d) {
+                    const rect = this.getBoundingClientRect();
+                    tooltip
+                        .classed("visible", true)
+                        .html(createTooltipContent(d))
+                        .style("left", (rect.left + rect.width + 10) + "px")
+                        .style("top", (rect.top - 10) + "px");
+                })
+                .on("mouseout", function() {
+                    tooltip.classed("visible", false);
+                })
+                .on("click", function(event, d) {
+                    event.stopPropagation();
+                    showDetailModal(d, 'node');
+                });
+            
+            // 更新位置
+            simulation.on("tick", () => {
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+                
+                node
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y);
+                
+                label
+                    .attr("x", d => d.x)
+                    .attr("y", d => d.y);
+            });
+            
+            document.getElementById("node-count").textContent = nodes.length;
+            document.getElementById("link-count").textContent = links.length;
+        }
+        
+        async function searchByProperty() {
+            try {
+                const entityType = document.getElementById('entity-type').value;
+                const propertyKey = document.getElementById('property-key').value;
+                const propertyValue = document.getElementById('property-value').value.trim();
+                const limit = parseInt(document.getElementById('search-limit').value);
+                
+                if (!propertyValue) {
+                    alert('请输入搜索内容');
+                    return;
+                }
+                
+                document.getElementById("loading").style.display = "block";
+                
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        entity_type: entityType,
+                        property_key: propertyKey,
+                        property_value: propertyValue,
+                        limit: limit
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`搜索失败: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+                
+                graphData = result;
+                document.getElementById("loading").style.display = "none";
+                renderGraph();
+                
+                console.log(`🔍 搜索完成: 找到 ${result.nodes.length} 个节点`);
+                
+            } catch (error) {
+                document.getElementById("loading").innerHTML = 
+                    `<div class="error">搜索失败: ${error.message}</div>`;
+                console.error('❌ 搜索错误:', error);
+            }
+        }
+        
+        const entityProperties = {
+            'Wheat': ['品种名称', '库编号', '统一编号'],
+            'Region': ['原产地', '省', '种类'],
+            'Disease': ['病害名称']
+        };
+        
+        function updatePropertyOptions() {
+            const entityType = document.getElementById('entity-type').value;
+            const propertySelect = document.getElementById('property-key');
+            
+            // 清空现有选项
+            propertySelect.innerHTML = '';
+            
+            if (entityType && entityProperties[entityType]) {
+                // 添加特定实体的属性
+                entityProperties[entityType].forEach(prop => {
+                    const option = document.createElement('option');
+                    option.value = prop;
+                    option.textContent = prop;
+                    propertySelect.appendChild(option);
+                });
+            }
+        }
+        
+        // 拖拽事件处理
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+        
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+        
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+        
+        // 加载图谱数据
+        async function loadGraphData() {
+            try {
+                document.getElementById("loading").style.display = "block";
+                
+                console.log('🔄 开始加载图谱数据...');
+                
+                let response = await fetch('/api/graph-data');
+                response = await handleApiResponse(response);
+                if (!response) return;
+                
+                console.log('📡 API响应状态:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API错误响应:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                graphData = await response.json();
+                console.log('📊 接收到数据:', graphData);
+                
+                if (graphData.error) {
+                    throw new Error(graphData.error);
+                }
+                
+                if (!graphData.nodes || graphData.nodes.length === 0) {
+                    throw new Error('没有找到AFFECTED_BY或GROWS_IN关系数据');
+                }
+                
+                document.getElementById("loading").style.display = "none";
+                renderGraph();
+                console.log('✅ 图谱渲染完成');
+                
+            } catch (error) {
+                const errorMsg = `加载失败: ${error.message}`;
+                document.getElementById("loading").innerHTML = 
+                    `<div class="error">${errorMsg}</div>`;
+                console.error('❌ 图谱加载错误:', error);
+            }
+        }
+        
+        // 刷新图谱
+        function refreshGraph() {
+            loadGraphData();
+        }
+        
+        async function askQuestion() {
+            try {
+                const question = document.getElementById('question-input').value.trim();
+                const answerDiv = document.getElementById('qa-answer');
+                
+                if (!question) {
+                    alert('请输入问题');
+                    return;
+                }
+                
+                // 显示加载状态
+                answerDiv.style.display = 'block';
+                answerDiv.innerHTML = '<div class="qa-loading">正在思考中...</div>';
+                
+                const response = await fetch('/api/question', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: question
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`请求失败: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+                
+                // 显示回答
+                answerDiv.innerHTML = `
+                    <div><strong>问题:</strong> ${result.question}</div>
+                    <div style="margin-top: 10px;"><strong>回答:</strong></div>
+                    <div style="margin-top: 5px; padding: 8px; background: #e3f2fd; border-radius: 4px;">${result.answer}</div>
+                    <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                        <details>
+                            <summary>查看技术详情</summary>
+                            <div style="margin-top: 5px;"><strong>Cypher查询:</strong> <code>${result.cypher}</code></div>
+                            <div style="margin-top: 5px;"><strong>查询结果:</strong> ${result.result.length} 条记录</div>
+                        </details>
+                    </div>
+                `;
+                
+                console.log('🤖 问答完成:', result);
+                
+            } catch (error) {
+                document.getElementById('qa-answer').innerHTML = 
+                    `<div style="color: #dc3545;">问答失败: ${error.message}</div>`;
+                console.error('❌ 问答错误:', error);
+            }
+        }
+        
+        // 页面加载完成后初始化
+        window.addEventListener('load', () => {
+            console.log('🌐 页面加载完成，开始初始化...');
+            loadUserInfo().then(() => {
+                loadGraphData();
+            });
+        });
+        
+        // 窗口大小改变时重新渲染
+        window.addEventListener('resize', () => {
+            if (graphData.nodes.length > 0) {
+                renderGraph();
+            }
+        });
+        
+        // 新增回车键搜索支持
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('property-value').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchByProperty();
+                }
+            });
+            
+            document.getElementById('question-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && e.ctrlKey) {
+                    askQuestion();
+                }
+            });
+        });
+        
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('detail-modal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+        
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+        
+        async function changeView() {
+            try {
+                const viewType = document.getElementById('view-selector').value;
+                const descriptionSpan = document.getElementById('view-description');
+                
+                // 更新描述文本
+                const descriptions = {
+                    'overview': '显示: AFFECTED_BY 和 GROWS_IN 关系',
+                    'wheat-region': '显示: 小麦与地区的 GROWS_IN 关系',
+                    'wheat-disease': '显示: 小麦与病害的 AFFECTED_BY 关系'
+                };
+                descriptionSpan.textContent = descriptions[viewType] || '加载中...';
+                
+                document.getElementById("loading").style.display = "block";
+                
+                console.log(`🔄 切换到视图: ${viewType}`);
+                
+                let response;
+                if (viewType === 'overview') {
+                    response = await fetch('/api/graph-data');
+                } else {
+                    response = await fetch(`/api/view/${viewType}`);
+                }
+                
+                console.log('📡 API响应状态:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API错误响应:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                graphData = await response.json();
+                console.log('📊 接收到数据:', graphData);
+                
+                if (graphData.error) {
+                    throw new Error(graphData.error);
+                }
+                
+                if (!graphData.nodes || graphData.nodes.length === 0) {
+                    throw new Error(`没有找到${viewType}视图的数据`);
+                }
+                
+                document.getElementById("loading").style.display = "none";
+                renderGraph();
+                console.log(`✅ ${viewType}视图渲染完成`);
+                
+            } catch (error) {
+                const errorMsg = `视图切换失败: ${error.message}`;
+                document.getElementById("loading").innerHTML = 
+                    `<div class="error">${errorMsg}</div>`;
+                console.error('❌ 视图切换错误:', error);
+            }
+        }
+        
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user/info');
+                if (response.ok) {
+                    const userInfo = await response.json();
+                    document.getElementById('current-username').textContent = userInfo.username;
+                    
+                    if (userInfo.username === 'admin') {
+                        document.getElementById('admin-link').style.display = 'inline-block';
+                    }
+                } else {
+                    window.location.href = '/login';
+                }
+            } catch (error) {
+                console.error('加载用户信息失败:', error);
+                window.location.href = '/login';
+            }
+        }
+        
+        async function logout() {
+            try {
+                const response = await fetch('/api/logout', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    window.location.href = '/login';
+                } else {
+                    alert('登出失败');
+                }
+            } catch (error) {
+                console.error('登出失败:', error);
+                alert('登出失败');
+            }
+        }
+        
+        async function handleApiResponse(response) {
+            if (response.status === 401) {
+                const data = await response.json();
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                    return null;
+                }
+            }
+            return response;
+        }
+    </script>
+</body>
+</html>
